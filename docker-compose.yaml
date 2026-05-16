@@ -1,0 +1,51 @@
+services:
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ghosty
+      POSTGRES_PASSWORD: ghosty
+      POSTGRES_DB: ghosty
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ghosty"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ghosty:ghosty@db:5432/ghosty
+      DATABASE_URL_SYNC: postgresql+psycopg2://ghosty:ghosty@db:5432/ghosty
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: clients/web
+      dockerfile: Dockerfile
+      args:
+        # All traffic goes through nginx on port 80, so both URLs use the same host.
+        # Override for VPS: VITE_API_URL=https://example.com VITE_WS_URL=wss://example.com
+        VITE_API_URL: http://localhost
+        VITE_WS_URL: ws://localhost
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:stable-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - web
+
+volumes:
+  postgres_data:

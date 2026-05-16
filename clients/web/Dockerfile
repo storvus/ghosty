@@ -8,8 +8,8 @@ RUN npm ci
 
 COPY . .
 
-ARG VITE_API_URL=http://localhost:8000
-ARG VITE_WS_URL=ws://localhost:8000
+ARG VITE_API_URL=http://ghosty.storv.us:8000
+ARG VITE_WS_URL=ws://ghosty.storv.us:8000
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_WS_URL=$VITE_WS_URL
 
