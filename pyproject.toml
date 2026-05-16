@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "ghosty"
+version = "0.1.0"
+description = ""
+authors = ["storvus <anton.scherbatov@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+fastapi = {extras = ["standard"], version = "^0.136.1"}
+sqlalchemy = {extras = ["asyncio"], version = "^2.0.49"}
+alembic = "^1.18.4"
+asyncpg = "^0.31.0"
+ruff = "^0.15.13"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.15.13"
+pytest = "^9.0.3"
+pytest-asyncio = "^1.3.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+[tool.pytest_env]
+DOTENV_PATH = ".env.test"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 120
+exclude = ["alembic/versions/*"]
+
+[tool.ruff.lint]
+# pycodestyle errors, pyflakes, and isort rules
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["server.tests"]
