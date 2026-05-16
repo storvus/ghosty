@@ -1,6 +1,6 @@
 import type { Subscription, Exception } from '../types/events'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 export async function getUid(): Promise<string> {
   const res = await fetch(`${API_URL}/uid`)

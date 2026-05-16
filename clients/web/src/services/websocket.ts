@@ -1,6 +1,6 @@
 import type { OutgoingEvent, IncomingEvent, ConnectionStatus } from '../types/events'
 
-const WS_URL = 'ws://localhost:8000/ws'
+const WS_URL = `${import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000'}/ws`
 
 type MessageHandler = (event: IncomingEvent) => void
 type StatusHandler = (status: ConnectionStatus) => void
