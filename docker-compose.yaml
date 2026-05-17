@@ -34,8 +34,8 @@ services:
       args:
         # All traffic goes through nginx on port 80, so both URLs use the same host.
         # Override for VPS: VITE_API_URL=https://example.com VITE_WS_URL=wss://example.com
-        VITE_API_URL: http://ghosty.storv.us/api
-        VITE_WS_URL: ws://ghosty.storv.us
+        VITE_API_URL: https://ghosty.storv.us/api
+        VITE_WS_URL: wss://ghosty.storv.us
     depends_on:
       - backend
     ports:
