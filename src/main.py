@@ -32,17 +32,17 @@ app_state = AppState()
 connection_manager = ConnectionManager(app_state)
 
 
-@app.get("/uid")
+@app.get("/api/uid")
 async def create_uid():
     return {"uid": str(uuid4())}
 
 
-@app.get("/exceptions")
+@app.get("/api/exceptions")
 async def get_exceptions(uid: str):  # noqa: ARG001
     return []
 
 
-@app.get("/subscriptions")
+@app.get("/api/subscriptions")
 async def get_subscriptions(uid: str):
     return [
         {"uid": user_id, "name": user_id, "presence": presence.value}
