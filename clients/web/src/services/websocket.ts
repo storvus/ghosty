@@ -1,6 +1,6 @@
 import type { OutgoingEvent, IncomingEvent, ConnectionStatus } from '../types/events'
 
-const WS_URL = `${import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000'}/ws`
+const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000'
 
 type MessageHandler = (event: IncomingEvent) => void
 type StatusHandler = (status: ConnectionStatus) => void
@@ -18,7 +18,7 @@ class WebSocketService {
 
     this.emit('CONNECTING')
 
-    const ws = new WebSocket(`${WS_URL}?token=${encodeURIComponent(token)}`)
+    const ws = new WebSocket(`${WS_URL}/ws?token=${encodeURIComponent(token)}`)
     this.ws = ws
 
     // Each handler captures `ws` locally and bails out if a newer connection

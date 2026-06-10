@@ -8,11 +8,6 @@ RUN npm ci
 
 COPY . .
 
-ARG VITE_API_URL=https://ghosty.storv.us/api
-ARG VITE_WS_URL=wss://ghosty.storv.us
-ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_WS_URL=$VITE_WS_URL
-
 RUN npm run build
 
 # ── Serve ─────────────────────────────────────────────────

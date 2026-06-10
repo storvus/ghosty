@@ -52,7 +52,7 @@ clients/web/
 ├── tsconfig.json
 ├── vite.config.ts
 └── src/
-    ├── main.tsx              # entry point
+    ├── index.tsx              # entry point
     ├── App.tsx               # single chat screen
     ├── App.css               # all styles
     ├── services/

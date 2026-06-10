@@ -1,0 +1,32 @@
+.sider {
+    border-left: 1px solid var(--ant-color-border-secondary);
+    overflow-y: auto;
+}
+
+.siderHeading {
+    padding: 10px 14px 6px;
+    border-bottom: 1px solid var(--ant-color-border-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ant-color-text-secondary);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.contactItem {
+    padding: 8px 14px !important;
+    cursor: pointer;
+}
+
+.contactItemActive {
+    background: var(--ant-color-fill-quaternary) !important;
+}
+
+.contactName {
+    font-size: 13px;
+    display: block;
+}
+
+.contactPresence {
+    font-size: 11px;
+}

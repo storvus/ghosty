@@ -11,9 +11,10 @@ class IncomingEvent(BaseModel):
     type: MessageType
 
 
-class MessageEvent(IncomingEvent):
-    type: Literal["message"]
-    recipient_id: str
+class IncomingMessageEvent(IncomingEvent):
+    type: Literal["incoming_message"]
+    recipient_ids: list[UserId]
+    conversation_id: int | None
     message: str
 
 
@@ -37,8 +38,9 @@ class OutgoingEvent:
 
 
 @dataclass
-class SendMessageEvent(OutgoingEvent):
-    from_user_id: UserId
+class OutgoingMessageEvent(OutgoingEvent):
+    from_uid: UserId
+    from_username: str
     to_user_id: UserId
     message: str
 
@@ -63,20 +65,16 @@ class ErrorEvent(OutgoingEvent):
 
 
 @dataclass
-class FriendAdded(OutgoingEvent):
-    ...
+class FriendAdded(OutgoingEvent): ...
 
 
 @dataclass
-class FriendRemoved(OutgoingEvent):
-    ...
+class FriendRemoved(OutgoingEvent): ...
 
 
 @dataclass
-class InvisibleExceptionAdded(OutgoingEvent):
-    ...
+class InvisibleExceptionAdded(OutgoingEvent): ...
 
 
 @dataclass
-class InvisibleExceptionRemoved(OutgoingEvent):
-    ...
+class InvisibleExceptionRemoved(OutgoingEvent): ...

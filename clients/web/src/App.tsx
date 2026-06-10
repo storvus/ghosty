@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
-  Layout, Typography, Tag, Input, Button, Modal,
-  Divider, List, Badge, Space, Spin, Select, theme,
+  Layout, Typography, Input, Button,
+  Badge, Space, Spin, Select, Grid, Tag,
 } from 'antd'
 import { wsService } from './services/websocket'
-import { getUid, getSubscriptions, getExceptions } from './services/api'
+import { getSubscriptions, getExceptions } from './services/api'
 import type {
   ConnectionStatus,
   UserPresence,
@@ -14,77 +14,35 @@ import type {
   IncomingNotifyPresence,
   Subscription,
 } from './types/events'
+import styles from './App.module.css'
+import { ContactsList } from 'src/components/ContactsList/ContactsList'
+import { STATUS_BADGE, STATUS_COLOR } from 'src/constants.ts'
+import { presenceBadge } from 'src/utils/presence.ts'
+import { SignupModal } from 'src/components/SignupModal/SignupModal.tsx'
+import { DialogBox } from 'src/components/DialogBox/DialogBox'
 
-const { Header, Content, Footer, Sider } = Layout
-const { Text, Title } = Typography
-
-function isChatMessage(e: IncomingEvent): e is IncomingChatMessage {
-  return 'from' in e && 'message' in e
-}
-
-function isNotifyPresence(e: IncomingEvent): e is IncomingNotifyPresence {
-  return (e as IncomingNotifyPresence).type === 'notify_presence'
-}
-
-const STATUS_COLOR: Record<ConnectionStatus, string> = {
-  CONNECTED: 'success',
-  CONNECTING: 'processing',
-  DISCONNECTED: 'error',
-}
-
-function presenceBadge(presence: string): 'success' | 'warning' | 'error' | 'default' {
-  switch (presence) {
-    case 'online': return 'success'
-    case 'away': return 'warning'
-    case 'do_not_disturb': return 'error'
-    default: return 'default'
-  }
-}
+const { Content, Header, Footer } = Layout
+const { Text } = Typography
 
 export default function App() {
   const [uid, setUid] = useState<string | null>(() => localStorage.getItem('uid'))
-  const [manualUid, setManualUid] = useState('')
-  const [gettingUid, setGettingUid] = useState(false)
 
   const [status, setStatus] = useState<ConnectionStatus>('DISCONNECTED')
   const [myPresence, setMyPresence] = useState<UserPresence>('online')
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Per-peer message history
   const [dialogs, setDialogs] = useState<Record<string, ChatEntry[]>>({})
   const [activeUid, setActiveUid] = useState<string | null>(null)
   const [unread, setUnread] = useState<Record<string, number>>({})
 
   const [messageText, setMessageText] = useState('')
 
-  // Ref so the WS message handler can read activeUid without stale closure
   const activeUidRef = useRef<string | null>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const { token } = theme.useToken()
+  const screens = Grid.useBreakpoint()
+  const isMobile = !screens.md
 
-  useEffect(() => {
-    activeUidRef.current = activeUid
-  }, [activeUid])
-
-  const resolveUid = (newUid: string) => {
-    localStorage.setItem('uid', newUid)
-    setUid(newUid)
-  }
-
-  const handleGetUid = async () => {
-    setGettingUid(true)
-    try {
-      resolveUid(await getUid())
-    } finally {
-      setGettingUid(false)
-    }
-  }
-
-  const handleUseManualUid = () => {
-    const trimmed = manualUid.trim()
-    if (trimmed) resolveUid(trimmed)
-  }
+  useEffect(() => { activeUidRef.current = activeUid }, [activeUid])
 
   const openDialog = (peerUid: string) => {
     setActiveUid(peerUid)
@@ -96,10 +54,32 @@ export default function App() {
       ...prev,
       [peerUid]: [
         ...(prev[peerUid] ?? []),
+        // ToDo: Add clientId
         { ...entry, id: crypto.randomUUID(), ts: new Date() },
       ],
     }))
   }, [])
+
+  const handleNotifyPresence = useCallback((event: IncomingNotifyPresence) => {
+    setSubscriptions((prev) =>
+      prev.map((s) => s.uid === event.subject_user_id ? { ...s, presence: event.presence } : s)
+    )
+  }, [])
+
+  const handleChatMessage = useCallback((event: IncomingChatMessage) => {
+    const chatEntry = {
+      kind: 'message',
+      sender: event.from_username,
+      text: event.message,
+    } as ChatEntry
+    addToDialog(event.from_uid, chatEntry)
+
+    if (activeUid !== event.from_uid) {
+      // update the unread counter if a sender isn't active/focused
+      setUnread((prev) => ({...prev, [event.from_uid]: (prev[event.from_uid] ?? 0) + 1}))
+    }
+  }, [activeUid, addToDialog])
+
 
   useEffect(() => {
     if (!uid) return
@@ -110,35 +90,26 @@ export default function App() {
       .catch(() => {})
       .finally(() => setLoading(false))
 
-    const offStatus = wsService.onStatus(setStatus)
-    const offMessage = wsService.onMessage((event: IncomingEvent) => {
-      if (isChatMessage(event)) {
-        addToDialog(event.from, { kind: 'message', sender: event.from, text: event.message })
-        if (activeUidRef.current !== event.from) {
-          setUnread((u) => ({ ...u, [event.from]: (u[event.from] ?? 0) + 1 }))
-        }
-      } else if (isNotifyPresence(event)) {
-        setSubscriptions((prev) =>
-          prev.map((s) =>
-            s.uid === event.subject_user_id ? { ...s, presence: event.presence } : s
-          )
-        )
+    const unsubscribeStatus = wsService.onStatus(setStatus)
+
+    const unsubscribeMessage = wsService.onMessage((event: IncomingEvent) => {
+      switch (event.type) {
+        case 'notify_presence':
+          handleNotifyPresence(event)
+          break
+
+        case 'incoming_message':
+          handleChatMessage(event)
+          break
       }
     })
+
     wsService.connect()
 
-    return () => {
-      offStatus()
-      offMessage()
-      wsService.disconnect()
-    }
+    // on cleanup
+    return () => { unsubscribeStatus(); unsubscribeMessage(); wsService.disconnect() }
+
   }, [uid, addToDialog])
-
-  const activeEntries = activeUid != null ? (dialogs[activeUid] ?? []) : []
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [activeEntries.length, activeUid])
 
   const handlePresenceChange = (value: UserPresence) => {
     setMyPresence(value)
@@ -154,179 +125,83 @@ export default function App() {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
+
+  const presenceOptions = [
+    { value: 'online',         label: <><Badge status="success" /> Online</> },
+    { value: 'away',           label: <><Badge status="warning" /> Away</> },
+    { value: 'do_not_disturb', label: <><Badge status="error" />   Do not disturb</> },
+  ]
+
+  const contactsOptions = subscriptions.map((sub) => ({
+    value: sub.uid,
+    label: (
+      <Space size={4}>
+        <Badge status={presenceBadge(sub.presence)} />
+        <span>{sub.name}</span>
+        {(unread[sub.uid] ?? 0) > 0 && <Badge count={unread[sub.uid]} size="small" />}
+      </Space>
+    ),
+  }))
 
   return (
     <>
-      {/* ── Full-screen loading overlay ──────────────────── */}
+      {/* ── Loading overlay ───────────────────────────────── */}
       {loading && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            background: 'rgba(255, 255, 255, 0.75)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+        <div className={styles.loadingOverlay}>
           <Spin size="large" />
         </div>
       )}
 
-      {/* ── UID setup modal ──────────────────────────────── */}
-      <Modal
-        open={!uid}
-        closable={false}
-        maskClosable={false}
-        footer={null}
-        centered
-        title={<Title level={4} style={{ margin: 0 }}>Welcome to Ghosty</Title>}
-      >
-        <Space direction="vertical" style={{ width: '100%', marginTop: 8 }} size="middle">
-          <Button
-            type="primary"
-            block
-            size="large"
-            loading={gettingUid}
-            onClick={handleGetUid}
-          >
-            Get the UID
-          </Button>
+      <SignupModal uid={uid} onSetUid={setUid}/>
 
-          <Divider plain style={{ margin: '4px 0' }}>or</Divider>
+      {/* ── Main layout ───────────────────────────────────── */}
+      <Layout className={styles.appLayout}>
+        <Header className={styles.header}>
+          <span className={styles.logo}>ghosty</span>
 
-          <Space.Compact style={{ width: '100%' }}>
-            <Input
-              placeholder="I already have a UID"
-              value={manualUid}
-              onChange={(e) => setManualUid(e.target.value)}
-              onPressEnter={handleUseManualUid}
-            />
-            <Button onClick={handleUseManualUid} disabled={!manualUid.trim()}>
-              Use it
-            </Button>
-          </Space.Compact>
-        </Space>
-      </Modal>
-
-      {/* ── Main layout ──────────────────────────────────── */}
-      <Layout style={{ height: '100%' }}>
-        <Header
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: token.colorBgContainer,
-            borderBottom: `1px solid ${token.colorBorderSecondary}`,
-            padding: '0 16px',
-            height: 48,
-            lineHeight: 'normal',
-            flexShrink: 0,
-          }}
-        >
-          <Text strong style={{ fontSize: 16, color: token.colorPrimary, letterSpacing: 3 }}>
-            ghosty
-          </Text>
           <Space size="middle">
-            {uid && (
-              <Text type="secondary" style={{ fontSize: 11 }}>{uid}</Text>
+            {uid && <Text type="secondary" className={styles.uid}>{uid}</Text>}
+
+            {/* Mobile: contact picker lives in the header */}
+            {isMobile && (
+              <Select
+                size="small"
+                placeholder="Contact"
+                value={activeUid ?? undefined}
+                onChange={openDialog}
+                className={styles.contactsSelect}
+                options={contactsOptions}
+              />
             )}
+
             <Select
               size="small"
               value={myPresence}
               disabled={status !== 'CONNECTED'}
               onChange={handlePresenceChange}
-              style={{ width: 152 }}
-              options={[
-                { value: 'online',          label: <><Badge status="success" /> Online</> },
-                { value: 'away',            label: <><Badge status="warning" /> Away</> },
-                { value: 'do_not_disturb',  label: <><Badge status="error" />   Do not disturb</> },
-              ]}
+              className={styles.presenceSelect}
+              options={presenceOptions}
             />
-            <Tag color={STATUS_COLOR[status]}>{status}</Tag>
+            {
+              isMobile
+                ? <Badge status={STATUS_BADGE[status]} title={status} />
+                : <Tag color={STATUS_COLOR[status]}>{status}</Tag>
+            }
           </Space>
         </Header>
 
-        {/* Middle row: chat column + contacts sider */}
-        <Layout style={{ overflow: 'hidden' }}>
+        {/* Middle row: chat + sider */}
+        <Layout className={styles.overflowHidden}>
 
           {/* Chat column */}
-          <Layout style={{ overflow: 'hidden' }}>
-            <Content
-              style={{
-                overflowY: 'auto',
-                padding: '12px 16px',
-                background: token.colorBgLayout,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-              }}
-            >
-              {!activeUid ? (
-                <div style={{
-                  flex: 1,
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Text type="secondary">Select a contact to start chatting</Text>
-                </div>
-              ) : activeEntries.length === 0 ? (
-                <Text type="secondary" style={{ textAlign: 'center', marginTop: 48, display: 'block' }}>
-                  No messages yet.
-                </Text>
-              ) : (
-                activeEntries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    style={{ display: 'flex', alignItems: 'baseline', gap: 4, lineHeight: 1.6 }}
-                  >
-                    {entry.kind === 'message' ? (
-                      <>
-                        <Text
-                          strong
-                          style={{
-                            color: entry.sender === 'me' ? token.colorSuccess : token.colorPrimary,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {entry.sender}:&nbsp;
-                        </Text>
-                        <Text style={{ flex: 1, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                          {entry.text}
-                        </Text>
-                      </>
-                    ) : (
-                      <Text type="secondary" italic style={{ flex: 1 }}>
-                        * {entry.text}
-                      </Text>
-                    )}
-                    <Text type="secondary" style={{ fontSize: 11, flexShrink: 0, marginLeft: 8 }}>
-                      {entry.ts.toLocaleTimeString()}
-                    </Text>
-                  </div>
-                ))
-              )}
-              <div ref={bottomRef} />
+          <Layout className={styles.overflowHidden}>
+            <Content className={styles.messages}>
+              <DialogBox dialogs={dialogs} activeUid={activeUid} />
             </Content>
+            <Footer className={styles.compose}>
 
-            <Footer
-              style={{
-                background: token.colorBgContainer,
-                borderTop: `1px solid ${token.colorBorderSecondary}`,
-                padding: '10px 16px',
-                display: 'flex',
-                gap: 8,
-                flexShrink: 0,
-              }}
-            >
               <Input.TextArea
                 placeholder={activeUid ? 'Type a message… (Enter to send)' : 'Select a contact first'}
                 rows={2}
@@ -340,62 +215,24 @@ export default function App() {
                 type="primary"
                 onClick={handleSend}
                 disabled={!activeUid || status !== 'CONNECTED'}
-                style={{ alignSelf: 'stretch', height: 'auto' }}
+                className={styles.sendBtn}
               >
                 Send
               </Button>
             </Footer>
           </Layout>
 
-          {/* Contacts sider */}
-          <Sider
-            width={220}
-            theme="light"
-            style={{
-              borderLeft: `1px solid ${token.colorBorderSecondary}`,
-              overflowY: 'auto',
-            }}
-          >
-            <div
-              style={{
-                padding: '10px 14px 6px',
-                borderBottom: `1px solid ${token.colorBorderSecondary}`,
-              }}
-            >
-              <Text strong style={{ fontSize: 12, color: token.colorTextSecondary }}>
-                CONTACTS
-              </Text>
-            </div>
-            <List
-              dataSource={subscriptions}
-              locale={{
-                emptyText: (
-                  <Text type="secondary" style={{ fontSize: 12 }}>No contacts online</Text>
-                ),
-              }}
-              renderItem={(sub) => (
-                <List.Item
-                  style={{
-                    padding: '8px 14px',
-                    cursor: 'pointer',
-                    background: activeUid === sub.uid ? token.colorBgTextHover : 'transparent',
-                  }}
-                  onClick={() => openDialog(sub.uid)}
-                >
-                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                    <Space size={8}>
-                      <Badge status={presenceBadge(sub.presence)} />
-                      <div>
-                        <Text style={{ fontSize: 13, display: 'block' }}>{sub.name}</Text>
-                        <Text type="secondary" style={{ fontSize: 11 }}>{sub.presence}</Text>
-                      </div>
-                    </Space>
-                    <Badge count={unread[sub.uid] ?? 0} size="small" />
-                  </Space>
-                </List.Item>
-              )}
-            />
-          </Sider>
+          {/* Desktop: contacts sider */}
+          {
+            !isMobile && (
+              <ContactsList
+                subscriptions={subscriptions}
+                activeUid={activeUid}
+                unreadMessagesCount={unread}
+                onDialogOpen={openDialog}
+              />
+            )
+          }
 
         </Layout>
       </Layout>

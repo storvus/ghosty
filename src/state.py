@@ -22,7 +22,6 @@ class AppState:
 
     def add_connection(self, peer_session: ClientSession):
         self.connections[peer_session.user_id].add(peer_session)
-        print(self.connections)
 
     def get_user_connections(self, user_id: UserId):
         return self.connections.get(user_id, set())
@@ -42,3 +41,6 @@ class AppState:
 
     async def get_invisible_exception_user_ids(self, user_id: UserId) -> list[UserId]:
         return []
+
+
+main_app_state = AppState()

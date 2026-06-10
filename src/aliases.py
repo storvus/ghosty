@@ -1,3 +1,3 @@
 from typing import TypeAlias
 
-UserId: TypeAlias = str
+UserId: TypeAlias = int

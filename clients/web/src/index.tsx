@@ -6,7 +6,7 @@ import './App.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ConfigProvider>
+    <ConfigProvider theme={{ cssVar: true }}>
       <App />
     </ConfigProvider>
   </StrictMode>,

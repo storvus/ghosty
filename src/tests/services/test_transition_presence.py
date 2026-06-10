@@ -45,7 +45,9 @@ async def test__disconnect__no_sessions_exist__invisible(app_state, current_pres
         Presence.AWAY,
     ],
 )
-async def test__disconnect__no_sessions_exist__non_invisible(app_state, current_presence):
+async def test__disconnect__no_sessions_exist__non_invisible(
+    app_state, current_presence
+):
     """
     If a user disconnects and has no active sessions and is currently not invisible,
     their presence should be set to OFFLINE
@@ -62,6 +64,7 @@ async def test__disconnect__no_sessions_exist__non_invisible(app_state, current_
         )
     ]
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "new_presence",
@@ -71,7 +74,9 @@ async def test__disconnect__no_sessions_exist__non_invisible(app_state, current_
         Presence.AWAY,
     ],
 )
-async def test__change_status_to_online__sync_session_and_broadcast(app_state, new_presence):
+async def test__change_status_to_online__sync_session_and_broadcast(
+    app_state, new_presence
+):
     """
     If a user changes their presence to an online status, it should update their presence
     and broadcast the new presence to their friends.
@@ -84,11 +89,14 @@ async def test__change_status_to_online__sync_session_and_broadcast(app_state, n
             subject_user_id="user1",
             audience_user_ids=["friend1", "friend2"],
             presence=new_presence,
-        )
+        ),
     ]
 
+
 @pytest.mark.asyncio
-async def test__change_status_to_invisible__sync_session_and_broadcast_offline(app_state):
+async def test__change_status_to_invisible__sync_session_and_broadcast_offline(
+    app_state,
+):
     """
     If a user changes their presence to invisible, it should update their presence to invisible and
     broadcast the new presence as offline to their friends.
@@ -101,17 +109,22 @@ async def test__change_status_to_invisible__sync_session_and_broadcast_offline(a
             subject_user_id="user1",
             audience_user_ids=["friend1", "friend2"],
             presence=Presence.OFFLINE,
-        )
+        ),
     ]
 
+
 @pytest.mark.asyncio
-async def test__change_status_to_invisible_except__sync_session_and_broadcast(app_state):
+async def test__change_status_to_invisible_except__sync_session_and_broadcast(
+    app_state,
+):
     """
     If a user changes their presence to invisible except, it should update their presence to invisible except and
     broadcast the new presence as offline to their friends or online to exception list.
     """
     presence_service = PresenceService(app_state)
-    events = await presence_service.transition_presence("user1", Presence.INVISIBLE_EXCEPT)
+    events = await presence_service.transition_presence(
+        "user1", Presence.INVISIBLE_EXCEPT
+    )
     assert events == [
         PresenceSyncEvent(user_id="user1", presence=Presence.INVISIBLE_EXCEPT),
         PresenceBroadcastEvent(
@@ -123,6 +136,5 @@ async def test__change_status_to_invisible_except__sync_session_and_broadcast(ap
             subject_user_id="user1",
             audience_user_ids=["friend2"],
             presence=Presence.ONLINE,
-        )
+        ),
     ]
-

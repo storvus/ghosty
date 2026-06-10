@@ -19,9 +19,7 @@ class PresenceService:
 
     # ToDo: cover with logs and comments
     async def transition_presence(
-        self,
-        user_id: UserId,
-        new_presence: Presence
+        self, user_id: UserId, new_presence: Presence
     ) -> list[PresenceBroadcastEvent | PresenceSyncEvent]:
         events: list[PresenceBroadcastEvent | PresenceSyncEvent] = []
 
@@ -30,13 +28,22 @@ class PresenceService:
         friend_user_ids = await self.app_state.get_friend_user_ids(user_id)
 
         if new_presence == Presence.OFFLINE:
-            logger.info("User %s is going offline, checking active sessions and current presence", user_id)
+            logger.info(
+                "User %s is going offline, checking active sessions and current presence",
+                user_id,
+            )
             if active_sessions:
-                logger.info("User %s still has active sessions, skipping presence update and broadcast", user_id)
+                logger.info(
+                    "User %s still has active sessions, skipping presence update and broadcast",
+                    user_id,
+                )
                 return []
 
             if current_presence in INVISIBLE_PRESENCES:
-                logger.info("User %s was invisible, skipping presence update and broadcast", user_id)
+                logger.info(
+                    "User %s was invisible, skipping presence update and broadcast",
+                    user_id,
+                )
                 return []
             msg = (
                 "User %s has no active sessions and is not invisible, "
@@ -77,9 +84,15 @@ class PresenceService:
             return events
 
         if new_presence == Presence.INVISIBLE_EXCEPT:
-            exception_user_ids = await self.app_state.get_invisible_exception_user_ids(user_id)
+            exception_user_ids = await self.app_state.get_invisible_exception_user_ids(
+                user_id
+            )
 
-            normal_user_ids = [friend_id for friend_id in friend_user_ids if friend_id not in exception_user_ids]
+            normal_user_ids = [
+                friend_id
+                for friend_id in friend_user_ids
+                if friend_id not in exception_user_ids
+            ]
 
             events.append(
                 PresenceBroadcastEvent(

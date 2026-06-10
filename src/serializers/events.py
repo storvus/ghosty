@@ -1,5 +1,5 @@
 from src.constants import MessageType
-from src.events import PresenceBroadcastEvent, PresenceSyncEvent, SendMessageEvent
+from src.events import PresenceBroadcastEvent, PresenceSyncEvent, OutgoingMessageEvent
 
 
 class EventSerializer:
@@ -21,11 +21,12 @@ class EventSerializer:
 event_serializer = EventSerializer()
 
 
-@event_serializer.register(SendMessageEvent)
+@event_serializer.register(OutgoingMessageEvent)
 def send_message_serializer(e):
     return {
         "type": MessageType.MESSAGE,
-        "from": e.from_user_id,
+        "from_uid": e.from_uid,
+        "from_username": e.from_username,
         "message": e.message,
     }
 

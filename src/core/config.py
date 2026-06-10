@@ -9,7 +9,11 @@ DOTENV_PATH = os.getenv("DOTENV_PATH", ".env")
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    model_config = SettingsConfigDict(env_file=DOTENV_PATH, case_sensitive=True, extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=DOTENV_PATH, case_sensitive=True, extra="ignore"
+    )
+
+    SECRET_KEY: str = "supersecretkey"
 
     APP_NAME: str = "Ghosty"
     BUILD_VERSION: str = "0.0.0"
@@ -19,6 +23,9 @@ class Settings(BaseSettings):
     # Database URLs (required)
     DATABASE_URL: str
     DATABASE_URL_SYNC: str
+
+    TOKEN_EXPIRE_DAYS: int = 30
+    TOKEN_ENCODE_ALGORITHM: str = "HS256"
 
     def is_production(self) -> bool:
         """Check if the application is running in production environment.

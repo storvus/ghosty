@@ -24,19 +24,22 @@ export type OutgoingEvent = HelloEvent | SendMessageEvent | PresenceUpdateEvent
 // Note: the server does not include a `type` field on chat/presence events.
 
 export interface IncomingChatMessage {
-  from: string
+  type: 'incoming_message'
+  from_uid: string
+  from_username: string
   message: string
 }
 
-export interface IncomingPresenceEvent {
-  user_id: string
-  presence: string
-}
+// export interface IncomingPresenceEvent {
+//   type: 'incoming_message'
+//   user_id: string
+//   presence: string
+// }
 
-export interface IncomingPresenceUpdated {
-  type: 'presence_updated'
-  presence: string
-}
+// export interface IncomingPresenceUpdated {
+//   type: 'presence_updated'
+//   presence: string
+// }
 
 export interface IncomingNotifyPresence {
   type: 'notify_presence'
@@ -44,7 +47,7 @@ export interface IncomingNotifyPresence {
   presence: string
 }
 
-export type IncomingEvent = IncomingChatMessage | IncomingPresenceEvent | IncomingPresenceUpdated | IncomingNotifyPresence | Record<string, unknown>
+export type IncomingEvent = IncomingChatMessage | IncomingNotifyPresence
 
 // UI model
 

@@ -10,13 +10,13 @@ export async function getUid(): Promise<string> {
 }
 
 export async function getSubscriptions(uid: string): Promise<Subscription[]> {
-  const res = await fetch(`${API_URL}/subscriptions?uid=${encodeURIComponent(uid)}`)
+  const res = await fetch(`${API_URL}/subscriptions?user_name=${encodeURIComponent(uid)}`)
   if (!res.ok) throw new Error('Failed to fetch subscriptions')
   return res.json() as Promise<Subscription[]>
 }
 
 export async function getExceptions(uid: string): Promise<Exception[]> {
-  const res = await fetch(`${API_URL}/exceptions?uid=${encodeURIComponent(uid)}`)
+  const res = await fetch(`${API_URL}/exceptions?user_name=${encodeURIComponent(uid)}`)
   if (!res.ok) throw new Error('Failed to fetch exceptions')
   return res.json() as Promise<Exception[]>
 }
