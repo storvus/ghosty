@@ -4,7 +4,6 @@ import {
   Badge, Space, Spin, Select, Grid, Tag,
 } from 'antd'
 import { wsService } from './services/websocket'
-import { getSubscriptions, getExceptions } from './services/api'
 import type {
   ConnectionStatus,
   UserPresence,
@@ -18,14 +17,15 @@ import styles from './App.module.css'
 import { ContactsList } from 'src/components/ContactsList/ContactsList'
 import { STATUS_BADGE, STATUS_COLOR } from 'src/constants.ts'
 import { presenceBadge } from 'src/utils/presence.ts'
-import { SignupModal } from 'src/components/SignupModal/SignupModal.tsx'
+import { AuthModal } from 'src/components/AuthModal/AuthModal'
 import { DialogBox } from 'src/components/DialogBox/DialogBox'
 
 const { Content, Header, Footer } = Layout
 const { Text } = Typography
 
 export default function App() {
-  const [uid, setUid] = useState<string | null>(() => localStorage.getItem('uid'))
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('access_token'))
+  const [username, setUsername] = useState<string | null>(() => localStorage.getItem('username'))
 
   const [status, setStatus] = useState<ConnectionStatus>('DISCONNECTED')
   const [myPresence, setMyPresence] = useState<UserPresence>('online')
@@ -49,12 +49,29 @@ export default function App() {
     setUnread((prev) => ({ ...prev, [peerUid]: 0 }))
   }
 
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('username')
+    setToken(null)
+    setUsername(null)
+    setSubscriptions([])
+    setDialogs({})
+    setUnread({})
+    setActiveUid(null)
+  }, [])
+
+  const handleLogin = useCallback((newToken: string, newUsername: string) => {
+    localStorage.setItem('access_token', newToken)
+    localStorage.setItem('username', newUsername)
+    setToken(newToken)
+    setUsername(newUsername)
+  }, [])
+
   const addToDialog = useCallback((peerUid: string, entry: Omit<ChatEntry, 'id' | 'ts'>) => {
     setDialogs((prev) => ({
       ...prev,
       [peerUid]: [
         ...(prev[peerUid] ?? []),
-        // ToDo: Add clientId
         { ...entry, id: crypto.randomUUID(), ts: new Date() },
       ],
     }))
@@ -75,41 +92,33 @@ export default function App() {
     addToDialog(event.from_uid, chatEntry)
 
     if (activeUid !== event.from_uid) {
-      // update the unread counter if a sender isn't active/focused
-      setUnread((prev) => ({...prev, [event.from_uid]: (prev[event.from_uid] ?? 0) + 1}))
+      setUnread((prev) => ({ ...prev, [event.from_uid]: (prev[event.from_uid] ?? 0) + 1 }))
     }
   }, [activeUid, addToDialog])
 
 
   useEffect(() => {
-    if (!uid) return
+    if (!token) return
 
-    setLoading(true)
-    Promise.all([getSubscriptions(uid), getExceptions(uid)])
-      .then(([subs]) => setSubscriptions(subs))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-
-    const unsubscribeStatus = wsService.onStatus(setStatus)
+    const unsubscribeStatus = wsService.onStatus((newStatus) => {
+      setStatus(newStatus)
+      if (newStatus === 'AUTH_ERROR') handleLogout()
+    })
 
     const unsubscribeMessage = wsService.onMessage((event: IncomingEvent) => {
       switch (event.type) {
         case 'notify_presence':
           handleNotifyPresence(event)
           break
-
         case 'incoming_message':
           handleChatMessage(event)
           break
       }
     })
-
     wsService.connect()
-
-    // on cleanup
     return () => { unsubscribeStatus(); unsubscribeMessage(); wsService.disconnect() }
 
-  }, [uid, addToDialog])
+  }, [token, addToDialog, handleLogout])
 
   const handlePresenceChange = (value: UserPresence) => {
     setMyPresence(value)
@@ -154,7 +163,7 @@ export default function App() {
         </div>
       )}
 
-      <SignupModal uid={uid} onSetUid={setUid}/>
+      <AuthModal open={!token} onLogin={handleLogin} />
 
       {/* ── Main layout ───────────────────────────────────── */}
       <Layout className={styles.appLayout}>
@@ -162,7 +171,7 @@ export default function App() {
           <span className={styles.logo}>ghosty</span>
 
           <Space size="middle">
-            {uid && <Text type="secondary" className={styles.uid}>{uid}</Text>}
+            {username && <Text type="secondary" className={styles.uid}>{username}</Text>}
 
             {/* Mobile: contact picker lives in the header */}
             {isMobile && (

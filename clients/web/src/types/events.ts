@@ -51,17 +51,12 @@ export type IncomingEvent = IncomingChatMessage | IncomingNotifyPresence
 
 // UI model
 
-export type ConnectionStatus = 'CONNECTING' | 'CONNECTED' | 'DISCONNECTED'
+export type ConnectionStatus = 'CONNECTING' | 'CONNECTED' | 'DISCONNECTED' | 'AUTH_ERROR'
 
 export interface Subscription {
   uid: string
   name: string
   presence: string
-}
-
-// Stub — will be expanded when the backend supports it
-export interface Exception {
-  uid: string
 }
 
 export interface ChatEntry {

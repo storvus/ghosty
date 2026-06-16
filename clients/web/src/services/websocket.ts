@@ -13,7 +13,7 @@ class WebSocketService {
   connect() {
     if (this.ws) return
 
-    const token = localStorage.getItem('uid')
+    const token = localStorage.getItem('access_token')
     if (!token) return
 
     this.emit('CONNECTING')
@@ -39,10 +39,15 @@ class WebSocketService {
       }
     }
 
-    ws.onclose = () => {
+    ws.onclose = (ev: CloseEvent) => {
       if (this.ws !== ws) return
       this.ws = null
-      this.emit('DISCONNECTED')
+      // Code 4001 means the server explicitly rejected the token (expired / invalid)
+      if (ev.code === 4001) {
+        this.emit('AUTH_ERROR')
+      } else {
+        this.emit('DISCONNECTED')
+      }
     }
 
     ws.onerror = () => {
