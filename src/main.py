@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api import user
+from src.api import chat, user
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,3 +18,4 @@ app.add_middleware(
 
 # app.include_router(gateway.router)
 app.include_router(user.router, prefix=API_V1_PREFIX)
+app.include_router(chat.router, prefix=API_V1_PREFIX)

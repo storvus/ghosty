@@ -10,9 +10,12 @@ from src.core.db import get_session
 from src.dto.current_user import CurrentUser
 
 from src.dto.token_payload import TokenPayload
+from src.repositories.conversation import SqlAlchemyConversationRepository, ConversationRepository
+from src.repositories.message import MessageRepository, SqlAlchemyMessageRepository
 # from src.repositories.message import SqlAlchemyMessageRepository, MessageRepository
 from src.repositories.user import SqlAlchemyUserRepository, UserRepository
 from src.services.auth import AuthService
+from src.services.conversation import ConversationService
 # from src.services.message import MessageService
 # from src.services.presence import PresenceService
 from src.services.user import UserService
@@ -33,12 +36,29 @@ def get_user_repo(db: Annotated[AsyncSession, Depends(get_session)]) -> SqlAlche
     return SqlAlchemyUserRepository(db)
 
 
+def get_conversation_repo(db: Annotated[AsyncSession, Depends(get_session)]) -> SqlAlchemyConversationRepository:
+    return SqlAlchemyConversationRepository(db)
+
+
+def get_message_repo(db: Annotated[AsyncSession, Depends(get_session)]) -> SqlAlchemyMessageRepository:
+    return SqlAlchemyMessageRepository(db)
+
+
 # services
 def get_user_service(
     db: Annotated[AsyncSession, Depends(get_session)],
     user_repo: Annotated[UserRepository, Depends(get_user_repo)],
 ) -> UserService:
     return UserService(db, user_repo)
+
+
+def get_conversation_service(
+    db: Annotated[AsyncSession, Depends(get_session)],
+    conversation_repo: Annotated[ConversationRepository, Depends(get_conversation_repo)],
+    message_repo: Annotated[MessageRepository, Depends(get_message_repo)],
+) -> ConversationService:
+    return ConversationService(db, conversation_repo, message_repo)
+
 
 def get_auth_service(user_repo: Annotated[UserRepository, Depends(get_user_repo)]) -> AuthService:
     return AuthService(user_repo)
@@ -64,4 +84,4 @@ async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> CurrentUser:
-    return auth_service.authenticate(credentials.credentials)
+    return await auth_service.authenticate(credentials.credentials)

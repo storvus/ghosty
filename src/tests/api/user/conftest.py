@@ -1,22 +1,23 @@
+import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import User
-from src.utils import hash_password
+from src.tests.factories import UserFactory
+from src.utils import create_token, hash_password
+
+# login tests hardcode this password, keep it stable
+_USER_PASSWORD = "SecurePassword123!"
 
 
 @pytest_asyncio.fixture
 async def user(db_session: AsyncSession):
-    payload = {
-        "password": "SecurePassword123!",
-        "username": "testuser"
-    }
-    password_hash = hash_password(payload["password"])
-    user = User.create(payload["username"], password_hash)
-    db_session.add(user)
+    u = UserFactory.build(username="testuser", password_hash=hash_password(_USER_PASSWORD))
+    db_session.add(u)
     await db_session.commit()
+    yield u
 
-    yield user
 
-    await db_session.delete(user)
-    await db_session.commit()
+@pytest.fixture
+def auth_headers(user: User) -> dict:
+    return {"Authorization": f"Bearer {create_token(user.id)}"}

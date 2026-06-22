@@ -39,18 +39,18 @@ class SqlAlchemyUserRepository:
             )
             .limit(limit)
         )
-        result = await self.db_session.execute(query)
-        return list(result.scalars())
+        users = await self.db_session.execute(query)
+        return list(users.scalars())
 
     async def get_user_by_id(self, user_id: int) -> User | None:
         query = select(User).where(User.id == user_id)
-        result = await self.db_session.execute(query)
-        return result.scalar_one_or_none()
+        user = await self.db_session.execute(query)
+        return user.scalar_one_or_none()
 
     async def get_user_by_username(self, username: str) -> User | None:
         query = select(User).where(User.username == username)
-        result = await self.db_session.execute(query)
-        return result.scalar_one_or_none()
+        user = await self.db_session.execute(query)
+        return user.scalar_one_or_none()
 
     def add(self, user: User):
         self.db_session.add(user)

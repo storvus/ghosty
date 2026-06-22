@@ -27,7 +27,7 @@ class AuthService:
     @staticmethod
     def decode_token(token: str) -> TokenPayload:
         try:
-            return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.TOKEN_ENCODE_ALGORITHM])
+            user_info = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.TOKEN_ENCODE_ALGORITHM])
         except jwt.ExpiredSignatureError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -38,3 +38,4 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid token",
             )
+        return TokenPayload(user_id=user_info["user_id"])

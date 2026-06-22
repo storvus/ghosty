@@ -1,38 +1,35 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.tests.factories import UserFactory
 
 
 @pytest.mark.asyncio
-async def test_search_no_auth(async_client: AsyncClient, user):
-    payload = {"username": ""}
-    response = await async_client.post("/api/search", json=payload)
+async def test_search_no_auth(async_client: AsyncClient):
+    response = await async_client.post("/api/search", json={"username": "x"})
     assert response.status_code == 401
 
-@pytest.mark.asyncio
-async def test_search_empty_query(async_client: AsyncClient, user):
-    token = await async_client.post("/api/login", json={"username": "testuser", "password": "SecurePassword123!"})
 
-    payload = {"username": ""}
-    response = await async_client.post(
-        "/api/search",
-        json=payload,
-        headers={"Authorization": f"Bearer {token.json()['access_token']}"}
-    )
+@pytest.mark.asyncio
+async def test_search_empty_query(async_client: AsyncClient, auth_headers: dict):
+    response = await async_client.post("/api/search", json={"username": ""}, headers=auth_headers)
     assert response.status_code == 422
 
+
 @pytest.mark.asyncio
-async def test_search_success(async_client: AsyncClient, user):
-    token = await async_client.post("/api/login", json={"username": "testuser", "password": "SecurePassword123!"})
+async def test_search_success(async_client: AsyncClient, db_session: AsyncSession, user, auth_headers: dict):
+    extra_users = [
+        UserFactory.build(username="testuser-junior"),
+        UserFactory.build(username="senior-testuser"),
+        UserFactory.build(username="realuser"),
+    ]
+    for u in extra_users:
+        db_session.add(u)
+    await db_session.commit()
 
-    await async_client.post("/api/register", json={"username": "testuser-junior", "password": "123456"})
-    await async_client.post("/api/register", json={"username": "senior-testuser", "password": "123456"})
-    await async_client.post("/api/register", json={"username": "realuser", "password": "123456"})
+    response = await async_client.post("/api/search", json={"username": "testuser"}, headers=auth_headers)
 
-    response = await async_client.post(
-        "/api/search",
-        json={"username": "testuser"},
-        headers={"Authorization": f"Bearer {token.json()['access_token']}"}
-    )
     assert response.status_code == 200
     assert [u["username"] for u in response.json()] == [
         "testuser",

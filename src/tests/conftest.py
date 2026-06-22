@@ -27,17 +27,3 @@ def migrate_db():
     alembic_cfg = Config("alembic.ini")
     command.downgrade(alembic_cfg, "base")
     command.upgrade(alembic_cfg, "head")
-
-
-# @pytest_asyncio.fixture(autouse=True)
-# async def truncate_tables(db_engine, request):
-#     # Skip DB operations for unit tests marked with 'no_db'
-#     if request.node.get_closest_marker("no_db"):
-#         yield
-#         return
-#
-#     table_names = ", ".join(t.name for t in Base.metadata.sorted_tables)
-#     async with db_engine.connect() as conn:
-#         async with conn.begin():
-#             await conn.execute(text(f"TRUNCATE {table_names} RESTART IDENTITY CASCADE"))
-#     yield
