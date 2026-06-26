@@ -4,6 +4,19 @@ export class UnauthorizedError extends Error {
   constructor() { super('Session expired. Please log in again.') }
 }
 
+export interface Message {
+  id: number
+  text: string
+  sender_id: number
+  created_at: string
+}
+
+export interface Chat {
+  conversation_id: number
+  last_message: Message[]
+  unread_count: number
+}
+
 export interface AuthResult {
   access_token: string
   token_type: string
@@ -31,6 +44,18 @@ export async function register(username: string, password: string): Promise<Auth
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
     throw new Error((data as { detail?: string }).detail ?? 'Registration failed')
+  }
+  return res.json()
+}
+
+export async function getChats(token: string): Promise<Chat[]> {
+  const res = await fetch(`${API_URL}/chats`, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error((data as { detail?: string }).detail ?? 'Failed to get chats list')
   }
   return res.json()
 }

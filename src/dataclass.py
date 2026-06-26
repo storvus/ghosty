@@ -15,6 +15,3 @@ class ClientSession:
 
     def set_state(self, new_state: ConnectionState):
         self.state = new_state
-
-    def __hash__(self):
-        return id(self.ws)

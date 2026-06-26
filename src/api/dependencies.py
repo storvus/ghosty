@@ -10,6 +10,7 @@ from src.core.db import get_session
 from src.dto.current_user import CurrentUser
 
 from src.dto.token_payload import TokenPayload
+from src.managers.connection import ConnectionManager
 from src.repositories.conversation import SqlAlchemyConversationRepository, ConversationRepository
 from src.repositories.message import MessageRepository, SqlAlchemyMessageRepository
 # from src.repositories.message import SqlAlchemyMessageRepository, MessageRepository
@@ -24,6 +25,10 @@ from src.state import AppState, main_app_state
 
 def get_app_state():
     return main_app_state
+
+# managers
+def get_connection_manager(app_state: Annotated[AppState, Depends(get_app_state)]):
+    return ConnectionManager(app_state)
 
 # repos
 # def get_message_repo(

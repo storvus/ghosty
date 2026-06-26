@@ -1,14 +1,16 @@
-import type { OutgoingEvent, IncomingEvent, ConnectionStatus } from '../types/events'
+import type { OutgoingEvent, IncomingEvent, ConnectionState } from '../types/events'
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000'
 
 type MessageHandler = (event: IncomingEvent) => void
-type StatusHandler = (status: ConnectionStatus) => void
+type ConnectionStateHandler = (status: ConnectionState) => void
 
 class WebSocketService {
   private ws: WebSocket | null = null
   private messageHandlers = new Set<MessageHandler>()
-  private statusHandlers = new Set<StatusHandler>()
+  private connectionStateHandlers = new Set<ConnectionStateHandler>()
+  private initialized = false
+  private buffer = new Array<IncomingEvent>()
 
   connect() {
     if (this.ws) return
@@ -26,17 +28,27 @@ class WebSocketService {
     ws.onopen = () => {
       if (this.ws !== ws) return
       this.emit('CONNECTED')
-      this.send({ type: 'hello', presence: 'online' })
+      // this.send({ type: 'hello', presence: 'online' })
     }
 
     ws.onmessage = (ev: MessageEvent<string>) => {
       if (this.ws !== ws) return
+      let data
       try {
-        const data = JSON.parse(ev.data) as IncomingEvent
-        this.messageHandlers.forEach((h) => h(data))
-      } catch {
-        // ignore malformed frames
+        data = JSON.parse(ev.data) as IncomingEvent
+      } catch { return }
+
+      if (data.type === 'connected') {
+        this.emit('INITIALIZING')
+        return
       }
+
+      if (!this.initialized) {
+        this.buffer.push(data)
+        return
+      }
+
+      this.handleMessage(data)
     }
 
     ws.onclose = (ev: CloseEvent) => {
@@ -56,6 +68,21 @@ class WebSocketService {
     }
   }
 
+  handleMessage(msg: IncomingEvent) {
+    try {
+      this.messageHandlers.forEach((h) => h(msg))
+    } catch {
+      // ignore malformed frames
+    }
+  }
+
+  markInitialized() {
+    this.initialized = true
+    this.buffer.forEach(this.handleMessage)
+    this.buffer = []
+    this.emit('READY')
+  }
+
   disconnect() {
     const ws = this.ws
     this.ws = null  // clear first so stale onclose is ignored
@@ -68,18 +95,18 @@ class WebSocketService {
     }
   }
 
-  onMessage(handler: MessageHandler): () => void {
+  subscribeToMessages(handler: MessageHandler): () => void {
     this.messageHandlers.add(handler)
     return () => this.messageHandlers.delete(handler)
   }
 
-  onStatus(handler: StatusHandler): () => void {
-    this.statusHandlers.add(handler)
-    return () => this.statusHandlers.delete(handler)
+  subscribeToConnectionState(handler: ConnectionStateHandler): () => void {
+    this.connectionStateHandlers.add(handler)
+    return () => this.connectionStateHandlers.delete(handler)
   }
 
-  private emit(status: ConnectionStatus) {
-    this.statusHandlers.forEach((h) => h(status))
+  private emit(status: ConnectionState) {
+    this.connectionStateHandlers.forEach((h) => h(status))
   }
 }
 
