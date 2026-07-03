@@ -59,3 +59,26 @@ export async function getChats(token: string): Promise<Chat[]> {
   }
   return res.json()
 }
+
+export interface UserResult {
+  id: number
+  username: string
+  display_number: number
+}
+
+export async function searchUsers(token: string, username: string): Promise<UserResult[]> {
+  const res = await fetch(`${API_URL}/search`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ username }),
+  })
+  if (res.status === 401) throw new UnauthorizedError()
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error((data as { detail?: string }).detail ?? 'Search failed')
+  }
+  return res.json()
+}

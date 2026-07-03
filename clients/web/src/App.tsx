@@ -14,7 +14,7 @@ import { ContactsList } from 'src/components/ContactsList/ContactsList'
 import { STATUS_BADGE, STATUS_COLOR } from 'src/constants.ts'
 import { AuthModal } from 'src/components/AuthModal/AuthModal'
 import { DialogBox } from 'src/components/DialogBox/DialogBox'
-import { Chat, getChats, login } from 'src/services/api'
+import { Chat, UserResult, getChats } from 'src/services/api'
 
 const { Content, Header, Footer } = Layout
 const { Text } = Typography
@@ -25,24 +25,24 @@ export default function App() {
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('DISCONNECTED')
   // const [myPresence, setMyPresence] = useState<UserPresence>('online')
-  const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
+  const [_subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [loading, setLoading] = useState(false)
   const [myChats, setChats] = useState<Chat[]>([])
 
-  const [dialogs, setDialogs] = useState<Record<string, ChatEntry[]>>({})
-  const [activeUid, setActiveUid] = useState<string | null>(null)
-  const [unread, setUnread] = useState<Record<string, number>>({})
+  const [dialogs, setDialogs] = useState<Record<number, ChatEntry[]>>({})
+  const [activeChatId, setActiveChatId] = useState<number | null>(null)
+  const [_unread, setUnread] = useState<Record<number, number>>({})
 
   const [messageText, setMessageText] = useState('')
 
-  const activeUidRef = useRef<string | null>(null)
+  const activeChatIdRef = useRef<number | null>(null)
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
 
-  useEffect(() => { activeUidRef.current = activeUid }, [activeUid])
+  useEffect(() => { activeChatIdRef.current = activeChatId }, [activeChatId])
 
-  const openDialog = (peerUid: string) => {
-    setActiveUid(peerUid)
+  const openDialog = (peerUid: number) => {
+    setActiveChatId(peerUid)
     setUnread((prev) => ({ ...prev, [peerUid]: 0 }))
   }
 
@@ -51,10 +51,14 @@ export default function App() {
     localStorage.removeItem('username')
     setToken(null)
     setUsername(null)
-    setSubscriptions([])
+    setChats([])
     setDialogs({})
     setUnread({})
-    setActiveUid(null)
+    setActiveChatId(null)
+  }, [])
+
+  const handleMessage = useCallback((user: UserResult) => {
+    setActiveChatId(user.id)
   }, [])
 
   const handleLogin = useCallback((newToken: string, newUsername: string) => {
@@ -107,10 +111,10 @@ export default function App() {
   //   } as ChatEntry
   //   addToDialog(event.from_uid, chatEntry)
   //
-  //   if (activeUid !== event.from_uid) {
+  //   if (activeChatId !== event.from_uid) {
   //     setUnread((prev) => ({ ...prev, [event.from_uid]: (prev[event.from_uid] ?? 0) + 1 }))
   //   }
-  // }, [activeUid, addToDialog])
+  // }, [activeChatId, addToDialog])
 
   useEffect(() => {
     if (!token) return
@@ -144,13 +148,13 @@ export default function App() {
   //   wsService.send({ type: 'presence', presence: value })
   // }
   //
-  // const handleSend = () => {
-  //   const text = messageText.trim()
-  //   if (!text || !activeUid || connectionState !== 'CONNECTED') return
-  //   wsService.send({ type: 'message', recipient_id: activeUid, message: text })
-  //   addToDialog(activeUid, { kind: 'message', sender: 'me', text })
-  //   setMessageText('')
-  // }
+  const handleSend = () => {
+    const text = messageText.trim()
+    if (!text || !activeChatId || connectionState !== 'CONNECTED') return
+    wsService.send({ type: 'message', recipient_id: activeChatId, message: text })
+    addToDialog(activeChatId, { kind: 'message', sender: 'me', text })
+    setMessageText('')
+  }
   //
   // const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
   //   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
@@ -197,7 +201,7 @@ export default function App() {
             {/*  <Select*/}
             {/*    size="small"*/}
             {/*    placeholder="Contact"*/}
-            {/*    value={activeUid ?? undefined}*/}
+            {/*    value={activeChatId ?? undefined}*/}
             {/*    onChange={openDialog}*/}
             {/*    className={styles.contactsSelect}*/}
             {/*    options={contactsOptions}*/}
@@ -226,14 +230,14 @@ export default function App() {
           {/* Chat column */}
           <Layout className={styles.overflowHidden}>
             <Content className={styles.messages}>
-              <DialogBox dialogs={dialogs} activeUid={activeUid} />
+              <DialogBox dialogs={dialogs} activeChatId={activeChatId} />
             </Content>
             <Footer className={styles.compose}>
 
               <Input.TextArea
-                placeholder={activeUid ? 'Type a message… (Enter to send)' : 'Select a contact first'}
+                placeholder={activeChatId ? 'Type a message… (Enter to send)' : 'Select a contact first'}
                 rows={2}
-                disabled={!activeUid}
+                disabled={!activeChatId}
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
                 // onKeyDown={handleKeyDown}
@@ -241,8 +245,8 @@ export default function App() {
               />
               <Button
                 type="primary"
-                // onClick={handleSend}
-                disabled={!activeUid || connectionState !== 'CONNECTED'}
+                onClick={handleSend}
+                disabled={!activeChatId || connectionState !== 'READY'}
                 className={styles.sendBtn}
               >
                 Send
@@ -255,9 +259,10 @@ export default function App() {
             !isMobile && (
               <ContactsList
                 chats={myChats}
-                activeUid={activeUid}
-                // unreadMessagesCount={unread}
+                activeChatId={activeChatId}
+                token={token ?? ''}
                 onDialogOpen={openDialog}
+                onMessage={handleMessage}
               />
             )
           }

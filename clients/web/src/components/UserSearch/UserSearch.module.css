@@ -1,0 +1,32 @@
+.searchRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.feedback {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.spinner {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+.resultItem {
+  padding: 8px 0 !important;
+}
+
+.resultName {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.resultUin {
+  font-size: 11px;
+  font-family: monospace;
+  letter-spacing: 0.5px;
+}

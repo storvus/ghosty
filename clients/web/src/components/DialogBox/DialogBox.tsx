@@ -7,24 +7,24 @@ import { useEffect, useRef } from 'react'
 const { Text } = Typography
 
 interface DialogProps {
-  activeUid: string | null
-  dialogs: Record<string, ChatEntry[]>
+  activeChatId: number | null
+  dialogs: Record<number, ChatEntry[]>
 }
 
 export const DialogBox = ({
-  activeUid,
+  activeChatId,
   dialogs,
 }: DialogProps) => {
-  const activeEntries = activeUid != null ? (dialogs[activeUid] ?? []) : []
+  const activeEntries = activeChatId != null ? (dialogs[activeChatId] ?? []) : []
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [activeEntries.length, activeUid])
+  }, [activeEntries.length, activeChatId])
 
   return (
     <>
-      {!activeUid && (
+      {!activeChatId && (
         <div className={styles.emptyState}>
           <Text type="secondary">Select a contact to start chatting</Text>
         </div>

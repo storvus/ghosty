@@ -29,4 +29,18 @@
 
 .contactPresence {
     font-size: 11px;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+}
+
+.findUsersRow {
+    padding: 10px 14px;
+    border-top: 1px solid var(--ant-color-border-secondary);
+}
+
+.findUsersBtn {
+    font-size: 12px;
 }
