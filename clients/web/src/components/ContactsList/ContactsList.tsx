@@ -3,19 +3,20 @@ import { Badge, Button, Layout, List, Space, Typography } from 'antd'
 
 import { presenceBadge } from 'src/utils/presence'
 import { UserSearch } from 'src/components/UserSearch/UserSearch'
-import { Chat, UserResult } from 'src/services/api'
 
 import styles from './ContactsList.module.css'
+import { User } from 'src/types/users'
+import { Chat } from 'src/types/chats'
 
 const { Sider } = Layout
 const { Text } = Typography
 
 interface ContactsListProps {
   chats: Chat[]
-  activeChatId: number | null
+  activeChatId: string | null
   token: string
-  onDialogOpen: (conversation_id: number) => void
-  onMessage: (user: UserResult) => void
+  onDialogOpen: (conversationId: string) => void
+  onMessage: (user: User) => void
 }
 
 export const ContactsList = ({
@@ -38,23 +39,23 @@ export const ContactsList = ({
         }}
         renderItem={(chat) => (
           <List.Item
-            className={`${styles.contactItem}${activeChatId === chat.conversation_id ? ` ${styles.contactItemActive}` : ''}`}
-            onClick={() => onDialogOpen(chat.conversation_id)}
+            className={`${styles.contactItem}${activeChatId === chat.conversationId ? ` ${styles.contactItemActive}` : ''}`}
+            onClick={() => onDialogOpen(chat.conversationId)}
           >
             <Space style={{ width: '100%', justifyContent: 'space-between' }}>
               <Space size={8}>
                 <Badge status={presenceBadge('offline')} />
                 <div>
-                  <Text className={styles.contactName}>Chat #{chat.conversation_id}</Text>
-                  {chat.last_message[0] && (
+                  <Text className={styles.contactName}>{chat.title}</Text>
+                  {chat.lastMessage && (
                     <Text type="secondary" className={styles.contactPresence}>
-                      {chat.last_message[0].text.slice(0, 28)}
-                      {chat.last_message[0].text.length > 28 ? '…' : ''}
+                      {chat.lastMessage.text.slice(0, 28)}
+                      {chat.lastMessage.text.length > 28 ? '…' : ''}
                     </Text>
                   )}
                 </div>
               </Space>
-              <Badge count={chat.unread_count ?? 0} size="small" />
+              <Badge count={chat.unreadCount ?? 0} size="small" />
             </Space>
           </List.Item>
         )}

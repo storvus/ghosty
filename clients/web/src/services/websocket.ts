@@ -1,14 +1,18 @@
-import type { OutgoingEvent, IncomingEvent, ConnectionState } from '../types/events'
+import type { OutgoingEvent, IncomingEvent, ConnectionStateEvent } from '../types/events'
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000'
 
 type MessageHandler = (event: IncomingEvent) => void
-type ConnectionStateHandler = (status: ConnectionState) => void
+type ConnectionStateHandler = (event: ConnectionStateEvent) => void
 
 class WebSocketService {
   private ws: WebSocket | null = null
   private messageHandlers = new Set<MessageHandler>()
   private connectionStateHandlers = new Set<ConnectionStateHandler>()
+  // connected only
+  private connected = false
+
+  // connected and initialized
   private initialized = false
   private buffer = new Array<IncomingEvent>()
 
@@ -18,7 +22,7 @@ class WebSocketService {
     const token = localStorage.getItem('access_token')
     if (!token) return
 
-    this.emit('CONNECTING')
+    this.emit({ status: 'CONNECTING' })
 
     const ws = new WebSocket(`${WS_URL}/ws?token=${encodeURIComponent(token)}`)
     this.ws = ws
@@ -27,8 +31,7 @@ class WebSocketService {
     // has already taken over (guards against React StrictMode's double-invoke).
     ws.onopen = () => {
       if (this.ws !== ws) return
-      this.emit('CONNECTED')
-      // this.send({ type: 'hello', presence: 'online' })
+      this.emit({ status: 'CONNECTED' })
     }
 
     ws.onmessage = (ev: MessageEvent<string>) => {
@@ -39,9 +42,13 @@ class WebSocketService {
       } catch { return }
 
       if (data.type === 'connected') {
-        this.emit('INITIALIZING')
+        this.connected = true
+        this.buffer.push(data)
+        this.emit({ status: 'INITIALIZING', user: data.user })
         return
       }
+
+      if (!this.connected) return
 
       if (!this.initialized) {
         this.buffer.push(data)
@@ -56,9 +63,9 @@ class WebSocketService {
       this.ws = null
       // Code 4001 means the server explicitly rejected the token (expired / invalid)
       if (ev.code === 4001) {
-        this.emit('AUTH_ERROR')
+        this.emit({ status: 'AUTH_ERROR' })
       } else {
-        this.emit('DISCONNECTED')
+        this.emit({ status: 'DISCONNECTED' })
       }
     }
 
@@ -80,7 +87,7 @@ class WebSocketService {
     this.initialized = true
     this.buffer.forEach(this.handleMessage)
     this.buffer = []
-    this.emit('READY')
+    this.emit({ status: 'READY' })
   }
 
   disconnect() {
@@ -105,8 +112,8 @@ class WebSocketService {
     return () => this.connectionStateHandlers.delete(handler)
   }
 
-  private emit(status: ConnectionState) {
-    this.connectionStateHandlers.forEach((h) => h(status))
+  private emit(event: ConnectionStateEvent) {
+    this.connectionStateHandlers.forEach((h) => h(event))
   }
 }
 

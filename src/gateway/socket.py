@@ -53,7 +53,7 @@ async def ws_endpoint(
         return
 
     try:
-        current_user = auth_service.authenticate(token)
+        current_user = await auth_service.authenticate(token)
     except HTTPException:
         await ws.close(code=4001)
         return
@@ -61,7 +61,7 @@ async def ws_endpoint(
     await ws.accept()
 
     # ToDo: to move into ConnectionManager one day
-    await ws.send_json({"type": "connected"})
+    await ws.send_json({"type": "connected", "user": current_user.to_dict()})
 
     peer_session = ClientSession(ws=ws, user_id=1, state=ConnectionState.AUTHENTICATED)
     app_state.add_connection(peer_session)

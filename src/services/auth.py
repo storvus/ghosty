@@ -19,10 +19,7 @@ class AuthService:
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
 
-        return CurrentUser(
-            id=user.id,
-            username=user.username,
-        )
+        return CurrentUser.from_user(user)
 
     @staticmethod
     def decode_token(token: str) -> TokenPayload:

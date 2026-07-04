@@ -25,8 +25,8 @@ async def test_invalid_username(async_client: AsyncClient, user, username: str, 
 @pytest.mark.asyncio
 async def test_happy_path(async_client: AsyncClient, user):
     payload = {
-        "password": "SecurePassword123!",
-        "username": "testuser"
+        "password": "Pass123!",
+        "username": user.username
     }
     response = await async_client.post("/api/login", json=payload)
     assert response.status_code == 200

@@ -1,20 +1,10 @@
+import { User } from 'src/types/users'
+import { Chat, ChatResponse } from 'src/types/chats'
+
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api'
 
 export class UnauthorizedError extends Error {
   constructor() { super('Session expired. Please log in again.') }
-}
-
-export interface Message {
-  id: number
-  text: string
-  sender_id: number
-  created_at: string
-}
-
-export interface Chat {
-  conversation_id: number
-  last_message: Message[]
-  unread_count: number
 }
 
 export interface AuthResult {
@@ -57,16 +47,24 @@ export async function getChats(token: string): Promise<Chat[]> {
     const data = await res.json().catch(() => ({}))
     throw new Error((data as { detail?: string }).detail ?? 'Failed to get chats list')
   }
-  return res.json()
+  const chats = await res.json()
+  return chats.map((chat: ChatResponse) => ({
+    type: chat.type,
+    participants: chat.participants,
+    conversationId: `chat:${chat.conversation_id}`,
+    lastMessage: chat.last_message && {
+      id: chat.last_message.id,
+      text: chat.last_message.text,
+      senderId: chat.last_message.sender_id,
+      createdAt: chat.last_message.created_at,
+    },
+    unreadCount: chat.unread_count,
+    title: chat.title,
+    oldestLoadedId: chat.last_message?.id ?? null,
+  }))
 }
 
-export interface UserResult {
-  id: number
-  username: string
-  display_number: number
-}
-
-export async function searchUsers(token: string, username: string): Promise<UserResult[]> {
+export async function searchUsers(token: string, username: string): Promise<User[]> {
   const res = await fetch(`${API_URL}/search`, {
     method: 'POST',
     headers: {

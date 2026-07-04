@@ -20,19 +20,20 @@ async def test_search_empty_query(async_client: AsyncClient, auth_headers: dict)
 @pytest.mark.asyncio
 async def test_search_success(async_client: AsyncClient, db_session: AsyncSession, user, auth_headers: dict):
     extra_users = [
-        UserFactory.build(username="testuser-junior"),
-        UserFactory.build(username="senior-testuser"),
+        UserFactory.build(username="userg"),
+        UserFactory.build(username="userg-junior"),
+        UserFactory.build(username="senior-userg"),
         UserFactory.build(username="realuser"),
     ]
     for u in extra_users:
         db_session.add(u)
     await db_session.commit()
 
-    response = await async_client.post("/api/search", json={"username": "testuser"}, headers=auth_headers)
+    response = await async_client.post("/api/search", json={"username": "userg"}, headers=auth_headers)
 
     assert response.status_code == 200
     assert [u["username"] for u in response.json()] == [
-        "testuser",
-        "testuser-junior",
-        "senior-testuser",
+        "userg",
+        "userg-junior",
+        "senior-userg",
     ]

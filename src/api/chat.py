@@ -3,7 +3,7 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, Query
 
 from src.api.dependencies import get_current_user, get_conversation_service
-from src.dto.chat_response import ChatResponse
+from src.dto.chat_response import ConversationRow, ConversationResponse
 from src.dto.current_user import CurrentUser
 from src.dto.message_response import MessageResponse
 from src.services.conversation import ConversationService
@@ -11,7 +11,7 @@ from src.services.conversation import ConversationService
 router = APIRouter(tags=["User"])
 
 
-@router.get("/chats/{chat_id}/history")
+@router.get("/chats/{chat_id}/history", response_model=list[MessageResponse], )
 async def get_history(
     chat_id: int,
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
@@ -21,9 +21,9 @@ async def get_history(
     return await conversation_service.get_history(current_user, chat_id, before_message_id)
 
 
-@router.get("/chats", response_model=list[ChatResponse],)
+@router.get("/chats", response_model=list[ConversationResponse], )
 async def get_chats(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     conversation_service: Annotated[ConversationService, Depends(get_conversation_service)],
-):
+) -> list[ConversationResponse]:
     return await conversation_service.get_user_conversations(current_user)

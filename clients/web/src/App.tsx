@@ -1,50 +1,42 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
-  Layout, Typography, Input, Button,
-  Badge, Space, Spin, Grid, Tag,
+  Layout, Typography, Badge, Space, Spin, Grid, Tag,
 } from 'antd'
 import { wsService } from './services/websocket'
-import type {
-  ConnectionState,
-  ChatEntry,
-  Subscription,
+import {
+  MessageEvent, ConnectionStateEvent,
 } from './types/events'
 import styles from './App.module.css'
 import { ContactsList } from 'src/components/ContactsList/ContactsList'
-import { STATUS_BADGE, STATUS_COLOR } from 'src/constants.ts'
+// import { STATUS_BADGE, STATUS_COLOR } from 'src/constants.ts'
 import { AuthModal } from 'src/components/AuthModal/AuthModal'
 import { DialogBox } from 'src/components/DialogBox/DialogBox'
-import { Chat, UserResult, getChats } from 'src/services/api'
+import { getChats } from 'src/services/api'
+import { User } from 'src/types/users'
+import { Chat, ChatId, ChatState, ChatType, LastMessage, Message } from 'src/types/chats'
+import { generateNewMessageEvent } from 'src/utils/chats'
 
-const { Content, Header, Footer } = Layout
+const { Header } = Layout
 const { Text } = Typography
 
 export default function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('access_token'))
   const [username, setUsername] = useState<string | null>(() => localStorage.getItem('username'))
 
-  const [connectionState, setConnectionState] = useState<ConnectionState>('DISCONNECTED')
-  // const [myPresence, setMyPresence] = useState<UserPresence>('online')
-  const [_subscriptions, setSubscriptions] = useState<Subscription[]>([])
+  const [userCache, setUserCache] = useState<Record<number, User>>({})
+
+  const [connectionState, setConnectionState] = useState<ConnectionStateEvent>({status: 'DISCONNECTED'})
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(false)
   const [myChats, setChats] = useState<Chat[]>([])
 
-  const [dialogs, setDialogs] = useState<Record<number, ChatEntry[]>>({})
-  const [activeChatId, setActiveChatId] = useState<number | null>(null)
-  const [_unread, setUnread] = useState<Record<number, number>>({})
+  const [dialogs, setDialogs] = useState<Record<ChatId, ChatState>>({})
+  const [activeChatId, setActiveChatId] = useState<ChatId | null>(null)
 
-  const [messageText, setMessageText] = useState('')
-
-  const activeChatIdRef = useRef<number | null>(null)
   const screens = Grid.useBreakpoint()
   const isMobile = !screens.md
 
-  useEffect(() => { activeChatIdRef.current = activeChatId }, [activeChatId])
-
-  const openDialog = (peerUid: number) => {
-    setActiveChatId(peerUid)
-    setUnread((prev) => ({ ...prev, [peerUid]: 0 }))
-  }
+  const isNotConnected = connectionState.status !== 'READY'
 
   const handleLogout = useCallback(() => {
     localStorage.removeItem('access_token')
@@ -53,13 +45,27 @@ export default function App() {
     setUsername(null)
     setChats([])
     setDialogs({})
-    setUnread({})
     setActiveChatId(null)
   }, [])
 
-  const handleMessage = useCallback((user: UserResult) => {
-    setActiveChatId(user.id)
-  }, [])
+  const openDialog = (chatId: string) => {
+    setActiveChatId(chatId)
+  }
+
+  const handleMessage = (user: User) => {
+    setUserCache((prev) => ({ ...prev, [user.id]: user }))
+    const existingChat = myChats
+      .find(c =>
+        c.type === 'direct' &&
+        c.participants.includes(user)
+      )
+
+    if (existingChat) {
+      openDialog(existingChat.conversationId)
+    } else {
+      openDialog(`pending:${user.id}`)
+    }
+  }
 
   const handleLogin = useCallback((newToken: string, newUsername: string) => {
     localStorage.setItem('access_token', newToken)
@@ -68,17 +74,24 @@ export default function App() {
     setUsername(newUsername)
   }, [])
 
-  const handleConnectionStateChange = useCallback(async (newConnectionState: ConnectionState) => {
+  const handleConnectionStateChange = useCallback(async (newConnectionState: ConnectionStateEvent) => {
     if (!token) return
     setConnectionState(newConnectionState)
-    if (newConnectionState === 'AUTH_ERROR') {
+    if (newConnectionState.status === 'AUTH_ERROR') {
       handleLogout()
       return
     }
-    if (newConnectionState === 'INITIALIZING') {
+    if (newConnectionState.status === 'INITIALIZING') {
       try {
         const chats = await getChats(token)
         setChats(chats)
+        setCurrentUser(newConnectionState.user)
+
+        const chatUsers: Record<number, User> = chats
+          .flatMap(chat => chat.participants)
+          .reduce((acc, user) => ({...acc, [user.id]: user}), {})
+        setUserCache(prev => ({ ...prev, ...chatUsers }))
+
         setLoading(false)
       } finally {
         wsService.markInitialized()
@@ -87,15 +100,18 @@ export default function App() {
     }
   }, [token, handleLogout])
 
-  // const addToDialog = useCallback((peerUid: string, entry: Omit<ChatEntry, 'id' | 'ts'>) => {
-  //   setDialogs((prev) => ({
-  //     ...prev,
-  //     [peerUid]: [
-  //       ...(prev[peerUid] ?? []),
-  //       { ...entry, id: crypto.randomUUID(), ts: new Date() },
-  //     ],
-  //   }))
-  // }, [])
+  const addToDialog = useCallback((chatId: ChatId, message: Message) => {
+    setDialogs((prev) => ({
+      ...prev,
+      [chatId]: {
+        confirmed: prev[chatId]?.confirmed || [],
+        pending: [
+          ...(prev[chatId]?.pending || []),
+          message,
+        ],
+      }
+    }))
+  }, [])
   //
   // const handleNotifyPresence = useCallback((event: IncomingNotifyPresence) => {
   //   setSubscriptions((prev) =>
@@ -139,26 +155,69 @@ export default function App() {
     }
   }, [
     token,
-    // addToDialog,
+    addToDialog,
     handleConnectionStateChange,
   ])
 
-  // const handlePresenceChange = (value: UserPresence) => {
-  //   setMyPresence(value)
-  //   wsService.send({ type: 'presence', presence: value })
-  // }
-  //
-  const handleSend = () => {
-    const text = messageText.trim()
-    if (!text || !activeChatId || connectionState !== 'CONNECTED') return
-    wsService.send({ type: 'message', recipient_id: activeChatId, message: text })
-    addToDialog(activeChatId, { kind: 'message', sender: 'me', text })
-    setMessageText('')
+  const handleSend = (messageText: string) => {
+    const message = messageText.trim()
+    if (!message || !activeChatId || isNotConnected || !currentUser) return
+    const [chatPrefix, chatId] = activeChatId.split(':')
+
+    const existingChat = myChats.find(c => c.conversationId === activeChatId)
+
+    const clientMessageId = crypto.randomUUID()
+    const lastMessage: LastMessage = {
+      id: null,
+      text: message,
+      senderId: currentUser.id,
+      createdAt: new Date().toISOString(),
+      clientMessageId: clientMessageId,
+    }
+    const newMessageEvent = generateNewMessageEvent(chatId, clientMessageId, message, chatPrefix === 'pending')
+    switch (chatPrefix) {
+      case 'pending':
+        const recipientId = parseInt(chatId, 10)
+        if (!existingChat) {
+          const newPendingChat = {
+            type: 'direct' as ChatType,
+            participants: [userCache[recipientId], currentUser],
+            conversationId: activeChatId,
+            lastMessage: lastMessage,
+            unreadCount: 0,
+            // ToDo: shouldn't be the case
+            title: userCache[recipientId].username ?? 'Unknown user',
+            oldestLoadedId: null
+          }
+          setChats((prev) => ([...prev, newPendingChat]))
+        } else {
+          existingChat.lastMessage = lastMessage
+        }
+        break
+      case 'chat':
+        if (!existingChat) {
+          console.error(`No existing chat found for activeChatId: ${activeChatId}`)
+          return
+        }
+        existingChat.lastMessage = lastMessage
+        break
+      default:
+        console.error(`Unknown chat prefix: ${chatPrefix}`)
+        return
+    }
+    wsService.send(newMessageEvent)
+
+    const dialogMessage: Message = {
+      id: null,
+      clientMessageId: clientMessageId,
+      kind: 'message',
+      text: lastMessage.text,
+      senderId: lastMessage.senderId,
+      createdAt: lastMessage.createdAt,
+      status: 'sending',
+    }
+    addToDialog(activeChatId, dialogMessage)
   }
-  //
-  // const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-  //   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-  // }
 
   // const presenceOptions = [
   //   { value: 'online',         label: <><Badge status="success" /> Online</> },
@@ -216,11 +275,11 @@ export default function App() {
             {/*  className={styles.presenceSelect}*/}
             {/*  options={presenceOptions}*/}
             {/*/>*/}
-            {
-              isMobile
-                ? <Badge status={STATUS_BADGE[connectionState]} title={connectionState} />
-                : <Tag color={STATUS_COLOR[connectionState]}>{connectionState}</Tag>
-            }
+            {/*{*/}
+            {/*  isMobile*/}
+            {/*    ? <Badge status={STATUS_BADGE[connectionState]} title={connectionState} />*/}
+                : <Tag>{connectionState.status}</Tag>
+            {/*}*/}
           </Space>
         </Header>
 
@@ -228,31 +287,13 @@ export default function App() {
         <Layout className={styles.overflowHidden}>
 
           {/* Chat column */}
-          <Layout className={styles.overflowHidden}>
-            <Content className={styles.messages}>
-              <DialogBox dialogs={dialogs} activeChatId={activeChatId} />
-            </Content>
-            <Footer className={styles.compose}>
-
-              <Input.TextArea
-                placeholder={activeChatId ? 'Type a message… (Enter to send)' : 'Select a contact first'}
-                rows={2}
-                disabled={!activeChatId}
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                // onKeyDown={handleKeyDown}
-                style={{ flex: 1, resize: 'none' }}
-              />
-              <Button
-                type="primary"
-                onClick={handleSend}
-                disabled={!activeChatId || connectionState !== 'READY'}
-                className={styles.sendBtn}
-              >
-                Send
-              </Button>
-            </Footer>
-          </Layout>
+          <DialogBox
+            currentUser={currentUser}
+            usersCache={userCache}
+            dialog={activeChatId ? dialogs[activeChatId] : null}
+            onSend={handleSend}
+            disabled={isNotConnected || activeChatId === null}
+          />
 
           {/* Desktop: contacts sider */}
           {

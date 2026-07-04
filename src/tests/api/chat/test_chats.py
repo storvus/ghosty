@@ -2,13 +2,14 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 import pytest
-from hamcrest import assert_that, contains_inanyorder
+from hamcrest import assert_that, contains_inanyorder, has_entries, only_contains
 from httpx import AsyncClient
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.models import Conversation, ConversationParticipant, User, Message
+from src.models.conversation import ConversationType
 from src.tests.factories import MessageFactory
 from src.utils import create_token
 
@@ -78,13 +79,17 @@ async def test_get_chats_conversation_with_no_messages(
     response = await async_client.get(URL, headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
-    assert data == [
-        {
-            "conversation_id": conv.id,
-            "last_message": None,
-            "unread_count": 0
-        }
-    ]
+    assert_that(data, only_contains(has_entries({
+        "type": ConversationType.direct,
+        "participants": contains_inanyorder(
+            has_entries({"id": user.id, "username": user.username, "display_number": user.display_number}),
+            has_entries({"id": other_user.id, "username": other_user.username, "display_number": other_user.display_number}),
+        ),
+        "last_read_message_id": None,
+        "conversation_id": conv.id,
+        "last_message": None,
+        "unread_count": 0
+    })))
 
 
 @pytest.mark.asyncio
@@ -117,8 +122,14 @@ async def test_get_chats_last_message_is_most_recent(
     response = await async_client.get(URL, headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
-    assert data == [
-        {
+    assert_that(data, only_contains(
+        has_entries({
+            "type": ConversationType.direct,
+            "participants": contains_inanyorder(
+                has_entries({"id": user.id, "username": user.username, "display_number": user.display_number}),
+                has_entries({"id": other_user.id, "username": other_user.username, "display_number": other_user.display_number}),
+            ),
+            "last_read_message_id": None,
             "conversation_id": conv.id,
             "last_message": {
                 "id": msg2.id,
@@ -127,8 +138,8 @@ async def test_get_chats_last_message_is_most_recent(
                 "created_at": msg2.created_at.isoformat(),
             },
             "unread_count": 2
-        }
-    ]
+        })
+    ))
 
 
 @pytest.mark.asyncio
@@ -172,7 +183,13 @@ async def test_get_chats_user_only_sees_own_conversations(
     assert_that(
         data,
         contains_inanyorder(
-            {
+            has_entries({
+                "type": ConversationType.direct,
+                "participants": contains_inanyorder(
+                    has_entries({"id": user.id, "username": user.username, "display_number": user.display_number}),
+                    has_entries({"id": user2.id, "username": user2.username, "display_number": user2.display_number}),
+                ),
+                "last_read_message_id": shared_conv1_msg.id,
                 "conversation_id": shared_conv1.id,
                 "last_message": {
                     "id": shared_conv1_msg.id,
@@ -181,9 +198,15 @@ async def test_get_chats_user_only_sees_own_conversations(
                     "created_at": shared_conv1_msg.created_at.isoformat(),
                 },
                 "unread_count": 0
-            },
-            {
+            }),
+            has_entries({
+                "type": ConversationType.direct,
+                "participants": contains_inanyorder(
+                    has_entries({"id": user.id, "username": user.username, "display_number": user.display_number}),
+                    has_entries({"id": user3.id, "username": user3.username, "display_number": user3.display_number}),
+                ),
                 "conversation_id": shared_conv2.id,
+                "last_read_message_id": shared_conv2_msg.id,
                 "last_message": {
                     "id": shared_conv2_msg2.id,
                     "text": shared_conv2_msg2.text,
@@ -191,9 +214,15 @@ async def test_get_chats_user_only_sees_own_conversations(
                     "created_at": shared_conv2_msg2.created_at.isoformat(),
                 },
                 "unread_count": 1
-            },
-            {
+            }),
+            has_entries({
+                "type": ConversationType.direct,
+                "participants": contains_inanyorder(
+                    has_entries({"id": user.id, "username": user.username, "display_number": user.display_number}),
+                    has_entries({"id": user4.id, "username": user4.username, "display_number": user4.display_number}),
+                ),
                 "conversation_id": shared_conv3.id,
+                "last_read_message_id": None,
                 "last_message": {
                     "id": shared_conv3_msg.id,
                     "text": shared_conv3_msg.text,
@@ -201,6 +230,6 @@ async def test_get_chats_user_only_sees_own_conversations(
                     "created_at": shared_conv3_msg.created_at.isoformat(),
                 },
                 "unread_count": 1
-            }
+            })
         )
     )

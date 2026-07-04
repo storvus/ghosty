@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Modal, Input, Button, List, Space, Typography, Spin } from 'antd'
-import { UserResult, searchUsers } from 'src/services/api'
+import { searchUsers } from 'src/services/api'
 import styles from './UserSearch.module.css'
+import { User } from 'src/types/users'
 
 const { Text } = Typography
 
@@ -9,12 +10,13 @@ interface UserSearchProps {
   open: boolean
   token: string
   onClose: () => void
-  onMessage: (user: UserResult) => void
+  onMessage: (user: User) => void
 }
 
 export const UserSearch = ({ open, token, onClose, onMessage }: UserSearchProps) => {
+  const myUsername = localStorage.getItem('username')
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<UserResult[]>([])
+  const [results, setResults] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searched, setSearched] = useState(false)
@@ -79,13 +81,17 @@ export const UserSearch = ({ open, token, onClose, onMessage }: UserSearchProps)
             <List.Item
               className={styles.resultItem}
               actions={[
-                <Button
-                  size="small"
-                  type="primary"
-                  onClick={() => { onMessage(user); handleClose() }}
-                >
-                  Message
-                </Button>,
+                myUsername === user.username
+                  ? "This is you"
+                  : (
+                    <Button
+                      size="small"
+                      type="primary"
+                      onClick={() => { onMessage(user); handleClose() }}
+                    >
+                      Message
+                    </Button>
+                  ),
               ]}
             >
               <Space direction="vertical" size={0}>

@@ -3,6 +3,7 @@ import logging
 import bcrypt
 from fastapi import HTTPException, status
 
+from src.dto.current_user import CurrentUser
 from src.dto.login_request import LoginRequest
 from src.dto.register_request import RegisterRequest
 from src.dto.search_request import SearchRequest
@@ -20,9 +21,10 @@ class UserService:
         self.db_session = db_session
         self.user_repo = user_repo
 
-    async def search(self, request: SearchRequest) -> list[UserResponse]:
+    async def search(self, request: SearchRequest, current_user: CurrentUser) -> list[UserResponse]:
         users = await self.user_repo.search_users(request.username)
-        return [UserResponse.from_user(user) for user in users]
+        # exclude current user from the results
+        return [UserResponse.from_user(user) for user in users if user.id != current_user.id]
 
     async def login(self, request: LoginRequest):
         user = await self.user_repo.get_user_by_username(request.username)

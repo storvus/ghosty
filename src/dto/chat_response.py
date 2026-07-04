@@ -1,12 +1,24 @@
 from pydantic import BaseModel
 
 from src.dto.message_response import MessageResponse
-from src.models import User
+from src.dto.user_response import UserResponse
+from src.models.conversation import ConversationType
 
 
-class ChatResponse(BaseModel):
+class ConversationRow(BaseModel):
     conversation_id: int
-    # title: str
+    last_read_message_id: int | None
+    participant_ids: list[int]
+    type: ConversationType
     last_message: MessageResponse | None
-    # avatar_url: str | None = None
+    unread_count: int
+
+
+class ConversationResponse(BaseModel):
+    conversation_id: int
+    last_read_message_id: int | None
+    participants: list[UserResponse]
+    type: ConversationType
+    title: str
+    last_message: MessageResponse | None
     unread_count: int

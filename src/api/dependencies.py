@@ -61,8 +61,9 @@ def get_conversation_service(
     db: Annotated[AsyncSession, Depends(get_session)],
     conversation_repo: Annotated[ConversationRepository, Depends(get_conversation_repo)],
     message_repo: Annotated[MessageRepository, Depends(get_message_repo)],
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
 ) -> ConversationService:
-    return ConversationService(db, conversation_repo, message_repo)
+    return ConversationService(db, conversation_repo, message_repo, user_repo)
 
 
 def get_auth_service(user_repo: Annotated[UserRepository, Depends(get_user_repo)]) -> AuthService:

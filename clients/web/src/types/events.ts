@@ -1,13 +1,17 @@
 // Outgoing events (client → server)
 
+import { User } from 'src/types/users'
+
 export interface HelloEvent {
   type: 'hello'
   presence: 'online' | 'away' | 'offline'
 }
 
-export interface SendMessageEvent {
+export interface MessageEvent {
   type: 'message'
-  recipient_id: string
+  conversation_id: number | null
+  recipient_id: number | null
+  client_message_id: string
   message: string
 }
 
@@ -18,7 +22,7 @@ export interface PresenceUpdateEvent {
   presence: UserPresence
 }
 
-export type OutgoingEvent = HelloEvent | SendMessageEvent | PresenceUpdateEvent
+export type OutgoingEvent = HelloEvent | MessageEvent | PresenceUpdateEvent
 
 // Incoming events (server → client)
 // Note: the server does not include a `type` field on chat/presence events.
@@ -32,6 +36,7 @@ export type OutgoingEvent = HelloEvent | SendMessageEvent | PresenceUpdateEvent
 
 export interface ConnectionEstablished {
   type: 'connected'
+  user: User
 }
 
 // export interface IncomingPresenceEvent {
@@ -55,7 +60,14 @@ export type IncomingEvent = ConnectionEstablished
 
 // UI model
 
-export type ConnectionState = 'CONNECTING' | 'CONNECTED' | 'INITIALIZING' | 'READY' | 'DISCONNECTED' | 'AUTH_ERROR'
+export type ConnectionStateEvent =
+  | { status: 'CONNECTING' }
+  | { status: 'CONNECTED' }
+  | { status: 'INITIALIZING'; user: User }
+  | { status: 'READY' }
+  | { status: 'DISCONNECTED' }
+  | { status: 'AUTH_ERROR' }
+
 
 export interface Subscription {
   uid: string
@@ -63,10 +75,4 @@ export interface Subscription {
   presence: string
 }
 
-export interface ChatEntry {
-  id: string
-  kind: 'message' | 'system'
-  sender?: string
-  text: string
-  ts: Date
-}
+

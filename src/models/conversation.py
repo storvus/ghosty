@@ -10,7 +10,7 @@ import enum
 
 class ConversationType(str, enum.Enum):
     direct = "direct"
-    group = "group"  # на будущее
+    group = "group"  # this is for the New Year
 
 
 class Conversation(Base):

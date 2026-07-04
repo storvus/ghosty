@@ -40,6 +40,6 @@ async def search(
     current_user: Annotated[CurrentUser, Depends(get_current_user)],
     user_service: Annotated[UserService, Depends(get_user_service)]
 ):
-    return await user_service.search(body)
+    return await user_service.search(body, current_user)
 
 
