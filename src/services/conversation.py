@@ -26,7 +26,7 @@ class ConversationService:
         logger.info(f"Fetching conversations for user {current_user.id}")
         conversations = await self.conversation_repo.get_conversations_for_user_id(current_user.id)
         user_ids = [user_id for conversation in conversations for user_id in conversation.participant_ids]
-        users = await self.user_repo.get_user_by_ids(user_ids)
+        users = await self.user_repo.get_by_ids(user_ids)
         user_map = {user.id: user for user in users}
 
         response = []
@@ -45,7 +45,6 @@ class ConversationService:
                 )
             )
         return response
-
 
     async def get_history(self, user: CurrentUser, conversation_id: int, before_message_id: int) -> list[MessageResponse]:
         # check if the user is allowed to read from this conversation

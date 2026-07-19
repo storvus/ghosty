@@ -23,11 +23,12 @@ class UserService:
 
     async def search(self, request: SearchRequest, current_user: CurrentUser) -> list[UserResponse]:
         users = await self.user_repo.search_users(request.username)
+        # ToDo: filter out users who has banned the current_user?
         # exclude current user from the results
         return [UserResponse.from_user(user) for user in users if user.id != current_user.id]
 
     async def login(self, request: LoginRequest):
-        user = await self.user_repo.get_user_by_username(request.username)
+        user = await self.user_repo.get_by_username(request.username)
         if not user or not bcrypt.checkpw(request.password.encode(), user.password_hash.encode()):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -36,7 +37,7 @@ class UserService:
         return TokenResponse(access_token=create_token(user.id))
 
     async def register(self, request: RegisterRequest) -> TokenResponse:
-        user = await self.user_repo.get_user_by_username(request.username)
+        user = await self.user_repo.get_by_username(request.username)
         if user:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

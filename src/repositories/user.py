@@ -11,13 +11,13 @@ class UserRepository(Protocol):
     async def search_users(self, username: str) -> list[User]:
         ...
 
-    async def get_user_by_id(self, user_id: int) -> User | None:
+    async def get_by_id(self, user_id: int) -> User | None:
         ...
 
-    async def get_user_by_ids(self, user_ids: list[int]) -> list[User]:
+    async def get_by_ids(self, user_ids: list[int]) -> list[User]:
         ...
 
-    async def get_user_by_username(self, username: str) -> User | None:
+    async def get_by_username(self, username: str) -> User | None:
         ...
 
     def add(self, user: User):
@@ -48,17 +48,17 @@ class SqlAlchemyUserRepository:
         users = await self.db_session.execute(query)
         return list(users.scalars())
 
-    async def get_user_by_ids(self, user_ids: list[int]) -> list[User]:
+    async def get_by_ids(self, user_ids: list[int]) -> list[User]:
         query = select(User).where(User.id.in_(user_ids))
         users = await self.db_session.execute(query)
         return list(users.scalars())
 
-    async def get_user_by_id(self, user_id: int) -> User | None:
+    async def get_by_id(self, user_id: int) -> User | None:
         query = select(User).where(User.id == user_id)
         user = await self.db_session.execute(query)
         return user.scalar_one_or_none()
 
-    async def get_user_by_username(self, username: str) -> User | None:
+    async def get_by_username(self, username: str) -> User | None:
         query = select(User).where(User.username == username)
         user = await self.db_session.execute(query)
         return user.scalar_one_or_none()

@@ -15,7 +15,7 @@ class AuthService:
     async def authenticate(self, token: str) -> CurrentUser:
         payload = self.decode_token(token)
 
-        user = await self.user_repo.get_user_by_id(payload.user_id)
+        user = await self.user_repo.get_by_id(payload.user_id)
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
 

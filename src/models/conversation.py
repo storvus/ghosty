@@ -34,3 +34,9 @@ class Conversation(Base):
         default=lambda: datetime.now(timezone.utc),
         server_default=func.now(),
     )
+
+    @staticmethod
+    def generate_conversation_key(participant_ids: list[int]) -> str:
+        """Generate a unique conversation key based on participant IDs."""
+        sorted_ids = sorted(participant_ids)
+        return f"direct:{'-'.join(map(str, sorted_ids))}"

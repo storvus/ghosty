@@ -17,6 +17,15 @@ class ConversationRepository(Protocol):
     async def is_participant(self, user_id: int, conversation_id: int) -> bool:
         ...
 
+    async def get_conversation_participants(self, conversation_id: int) -> list[ConversationParticipant]:
+        ...
+
+    async def get_direct_conversation_between_users(self, user1_id: int, user2_id: int) -> Conversation | None:
+        ...
+
+    async def create_conversation(self, participant_ids: list[int], type: str) -> Conversation:
+        ...
+
 
 class SqlAlchemyConversationRepository:
 
@@ -100,6 +109,32 @@ class SqlAlchemyConversationRepository:
             for conversation in conversations
         ]
 
+    async def get_direct_conversation_between_users(self, user1_id: int, user2_id: int) -> Conversation | None:
+        conversation_key = Conversation.generate_conversation_key([user1_id, user2_id])
+        query = (
+            select(Conversation)
+            .where(Conversation.type == "direct", Conversation.conversation_key == conversation_key)
+        )
+
+        result = await self.db_session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def create_conversation(self, participant_ids: list[int], type: str) -> Conversation:
+        conversation_key = Conversation.generate_conversation_key(participant_ids)
+
+        new_conversation = Conversation(type=type, conversation_key=conversation_key)
+        self.db_session.add(new_conversation)
+        await self.db_session.flush()  # Ensure the conversation ID is generated
+
+        participants = [
+            ConversationParticipant(conversation_id=new_conversation.id, user_id=user_id)
+            for user_id in participant_ids
+        ]
+        self.db_session.add_all(participants)
+        await self.db_session.flush()  # Ensure participants are added
+
+        return new_conversation
+
     async def is_participant(self, user_id: int, conversation_id: int) -> bool:
         result = await self.db_session.execute(
             select(ConversationParticipant)
@@ -109,3 +144,10 @@ class SqlAlchemyConversationRepository:
                 )
         )
         return result.scalar_one_or_none() is not None
+
+    async def get_conversation_participants(self, conversation_id: int) -> list[ConversationParticipant]:
+        result = await self.db_session.execute(
+            select(ConversationParticipant)
+            .where(ConversationParticipant.conversation_id == conversation_id)
+        )
+        return result.scalars().all()

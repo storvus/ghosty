@@ -17,6 +17,7 @@ from src.repositories.message import MessageRepository, SqlAlchemyMessageReposit
 from src.repositories.user import SqlAlchemyUserRepository, UserRepository
 from src.services.auth import AuthService
 from src.services.conversation import ConversationService
+from src.services.message import MessageService
 # from src.services.message import MessageService
 # from src.services.presence import PresenceService
 from src.services.user import UserService
@@ -70,12 +71,13 @@ def get_auth_service(user_repo: Annotated[UserRepository, Depends(get_user_repo)
     return AuthService(user_repo)
 
 
-# def get_message_service(
-#     db: Annotated[AsyncSession, Depends(get_session)],
-#     message_repo: Annotated[MessageRepository, Depends(get_message_repo)],
-#     user_repo: Annotated[UserRepository, Depends(get_user_repo)],
-# ) -> MessageService:
-#     return MessageService(db, message_repo, user_repo)
+def get_message_service(
+    db: Annotated[AsyncSession, Depends(get_session)],
+    message_repo: Annotated[MessageRepository, Depends(get_message_repo)],
+    user_repo: Annotated[UserRepository, Depends(get_user_repo)],
+    conversation_repo: Annotated[ConversationRepository, Depends(get_conversation_repo)],
+) -> MessageService:
+    return MessageService(db, message_repo, user_repo, conversation_repo)
 #
 #
 # def get_presence_service(
